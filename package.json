@@ -1,0 +1,17 @@
+{
+  "name": "desktop-pet",
+  "version": "2.0.0",
+  "private": true,
+  "description": "A cat that lives on the Windows desktop, plays with toys and keeps your copy-paste answers",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test tests/store.test.js tests/values.test.mjs tests/toys.test.mjs",
+    "test:app": "node tests/app.e2e.mjs"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "45.1.0",
+    "playwright-core": "1.48.2"
+  }
+}

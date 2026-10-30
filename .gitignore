@@ -1,0 +1,36 @@
+node_modules/
+
+# build output and previews
+dist/
+out/
+build/
+release/
+preview.png
+shots/
+
+# logs
+*.log
+logs/
+npm-debug.log*
+
+# local secrets and data (the app keeps its own in %APPDATA%\DesktopPet)
+.env
+.env.*
+fields.json
+notes.json
+settings.json
+*.broken-*.json
+
+# Last tick's cats (white cat, white kitten): free to use, but "may not be redistributed". Download them yourself
+# (see README), then run scripts/build_skins.py.
+skins-src/lasttick64/
+skins-src/lasttick32/
+assets/skins/white/
+assets/skins/kitten/
+
+# editor and OS files
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+.DS_Store

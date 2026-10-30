@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'">
+  <title>Answers</title>
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+  <div class="card">
+    <header>
+      <div class="avatar" id="avatar"></div>
+      <div class="title">
+        <strong id="name">Ket</strong>
+        <span>Click a row to copy it, then Ctrl+V in the form</span>
+      </div>
+      <button class="icon" id="close" title="Close (Esc)" aria-label="Close">
+        <svg viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+      </button>
+    </header>
+
+    <label class="search">
+      <svg viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+      <input id="q" placeholder="Search: email, notice, CTC…" spellcheck="false" autocomplete="off">
+      <kbd id="enter-hint">Enter copies</kbd>
+    </label>
+
+    <nav class="tabs" role="tablist">
+      <button data-tab="fields" class="on" role="tab">Easy Apply</button>
+      <button data-tab="notes" role="tab">Notes</button>
+    </nav>
+
+    <main id="list"></main>
+    <div id="toast" role="status"></div>
+  </div>
+  <script type="module" src="panel.js"></script>
+</body>
+</html>

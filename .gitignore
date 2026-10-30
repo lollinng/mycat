@@ -25,6 +25,7 @@ settings.json
 # (README, "Setting it up", step 2: scripts/add_lasttick_cats.py adds them).
 skins-src/lasttick64/
 skins-src/lasttick32/
+skins-src/downloads/
 assets/skins/white/
 assets/skins/kitten/
 

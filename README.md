@@ -32,12 +32,14 @@ Clicks go through to whatever is underneath everywhere except on the cat and its
      **No thanks, just take me to the downloads**, and download **PACK.zip**.
    - Open [32x32 Pixel kittens](https://last-tick.itch.io/animated-pixel-kittens-cats-32x32), same steps, and download
      **Free pack.zip** (not the winter or 14 feb ones).
-   - Run, with the paths to the two zips:
+   - Leave the two zips where the browser saved them (any name is fine, zipped or unzipped) and run, in this folder:
      ```
-     uv run --no-project --with pillow python scripts/add_lasttick_cats.py PACK.zip "Free pack.zip"
+     uv run --no-project --with pillow python scripts/add_lasttick_cats.py
      ```
-     (or `pip install pillow`, then the same with plain `python`). It copies the two white sheets into `skins-src/`
-     and rebuilds the cats. Without this step the Cats menu offers Kitty and Persian.
+     (or `pip install pillow`, then `python scripts/add_lasttick_cats.py`). It finds the packs in Downloads, on the
+     Desktop or in this folder, copies the two white sheets into `skins-src/` and rebuilds the cats; if a pack is
+     somewhere else, give its path after the command. If it cannot find one, it says which one to download.
+     Without this step the Cats menu offers Kitty and Persian.
 3. `npm start`. It adds **Desktop Pet** to the Start menu and, while *Start with Windows* is ticked, to
    `shell:startup`. Starting it a second time opens the answers panel instead of a second cat.
 

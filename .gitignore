@@ -22,7 +22,7 @@ settings.json
 *.broken-*.json
 
 # Last tick's cats (white cat, white kitten): free to use, but "may not be redistributed". Download them yourself
-# (see README), then run scripts/build_skins.py.
+# (README, "Setting it up", step 2: scripts/add_lasttick_cats.py adds them).
 skins-src/lasttick64/
 skins-src/lasttick32/
 assets/skins/white/

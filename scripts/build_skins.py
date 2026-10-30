@@ -75,32 +75,38 @@ def build():
         "crouch": (f("Stretching")[1:3], 4, {}), "itch": (f("Itch"), 6, {}),
     }, [3, 4, 6])
 
-    # Last tick's white cat: 64x64 frames, one row per animation (row numbers from the pack's labelled sheet)
-    sheet = Image.open(SRC / "lasttick64" / "white.png").convert("RGBA")
-    row = lambda r, n=None, pick=None: [cut(sheet, 64, 64, r, 14)[i] for i in (pick or range(n))]
-    white = skin("white", "White cat", {
-        "idle": (row(26, 5), 6, {}), "sit": (row(22, 5), 5, {}), "walk": (row(4, 6), 8, {"speed": 24}),
-        "run": (row(10, 5), 12, {"speed": 90}), "lick": (row(12, 8), 8, {}), "lick2": (row(13, 8), 8, {}),
-        "meow": (row(14, 3), 6, {}), "itch": (row(18, 8), 10, {}), "yawn": (row(43, 7), 7, {}),
-        "paw": (row(35, 11), 16, {}), "lie": (row(28, 3), 4, {}), "sleep": (row(45, 2), 1.2, {}),
-        "sleep2": (row(53, 2), 1.2, {}), "eat": (row(59, 10), 8, {}), "scared": (row(61, 2), 4, {}),
-        "jump": (row(64, 5), 10, {"byHeight": True}), "happy": (row(65, 4), 6, {}),
-        "crouch": (row(64, pick=[1]), 1, {}), "stretch": (row(6, pick=[10, 11, 12, 13, 12, 11]), 4, {"once": True}),
-    }, [2, 3, 4])
+    skins = [kitty, persian]
+    # Last tick's cats are not in the repo (their terms forbid redistribution): built only once their sheets are
+    # in skins-src/ (scripts/add_lasttick_cats.py puts them there, see README).
+    if (SRC / "lasttick64" / "white.png").exists():
+        # Last tick's white cat: 64x64 frames, one row per animation (row numbers from the pack's labelled sheet)
+        sheet = Image.open(SRC / "lasttick64" / "white.png").convert("RGBA")
+        row = lambda r, n=None, pick=None: [cut(sheet, 64, 64, r, 14)[i] for i in (pick or range(n))]
+        white = skin("white", "White cat", {
+            "idle": (row(26, 5), 6, {}), "sit": (row(22, 5), 5, {}), "walk": (row(4, 6), 8, {"speed": 24}),
+            "run": (row(10, 5), 12, {"speed": 90}), "lick": (row(12, 8), 8, {}), "lick2": (row(13, 8), 8, {}),
+            "meow": (row(14, 3), 6, {}), "itch": (row(18, 8), 10, {}), "yawn": (row(43, 7), 7, {}),
+            "paw": (row(35, 11), 16, {}), "lie": (row(28, 3), 4, {}), "sleep": (row(45, 2), 1.2, {}),
+            "sleep2": (row(53, 2), 1.2, {}), "eat": (row(59, 10), 8, {}), "scared": (row(61, 2), 4, {}),
+            "jump": (row(64, 5), 10, {"byHeight": True}), "happy": (row(65, 4), 6, {}),
+            "crouch": (row(64, pick=[1]), 1, {}), "stretch": (row(6, pick=[10, 11, 12, 13, 12, 11]), 4, {"once": True}),
+        }, [2, 3, 4])
+        skins.append(white)
 
-    # Last tick's white kitten: 32x32 frames, same idea (its "(l)"/"(r)" labels do not always mean facing; these all face right)
-    sheet = Image.open(SRC / "lasttick32" / "white.png").convert("RGBA")
-    row = lambda r, n=None, pick=None: [cut(sheet, 32, 32, r, 11)[i] for i in (pick or range(n))]
-    kitten = skin("kitten", "White kitten", {
-        "idle": (row(1, pick=[3]), 1, {}), "sit": (row(0, pick=[3]), 1, {}), "walk": (row(6, 8), 10, {"speed": 14}),
-        "lick": (row(36, 9), 8, {}), "lick2": (row(38, 7), 8, {}), "meow": (row(28, 3), 6, {}),
-        "yawn": (row(32, 8), 8, {}), "itch": (row(40, 11), 12, {}), "paw": (row(47, 7), 12, {}),
-        "lie": (row(3, pick=[1]), 1, {}), "sleep": (row(13, 2), 1.2, {}), "sleep2": (row(18, 2), 1.2, {}),
-        "eat": (row(23, 8), 8, {}), "scared": (row(42, 2), 4, {}), "happy": (row(52, 4), 6, {}),
-        "crouch": (row(2, pick=[3]), 1, {}), "stretch": (row(3, pick=[8]), 1, {}),
-    }, [4, 5, 7])
+    if (SRC / "lasttick32" / "white.png").exists():
+        # Last tick's white kitten: 32x32 frames, same idea (its "(l)"/"(r)" labels do not always mean facing; these all face right)
+        sheet = Image.open(SRC / "lasttick32" / "white.png").convert("RGBA")
+        row = lambda r, n=None, pick=None: [cut(sheet, 32, 32, r, 11)[i] for i in (pick or range(n))]
+        kitten = skin("kitten", "White kitten", {
+            "idle": (row(1, pick=[3]), 1, {}), "sit": (row(0, pick=[3]), 1, {}), "walk": (row(6, 8), 10, {"speed": 14}),
+            "lick": (row(36, 9), 8, {}), "lick2": (row(38, 7), 8, {}), "meow": (row(28, 3), 6, {}),
+            "yawn": (row(32, 8), 8, {}), "itch": (row(40, 11), 12, {}), "paw": (row(47, 7), 12, {}),
+            "lie": (row(3, pick=[1]), 1, {}), "sleep": (row(13, 2), 1.2, {}), "sleep2": (row(18, 2), 1.2, {}),
+            "eat": (row(23, 8), 8, {}), "scared": (row(42, 2), 4, {}), "happy": (row(52, 4), 6, {}),
+            "crouch": (row(2, pick=[3]), 1, {}), "stretch": (row(3, pick=[8]), 1, {}),
+        }, [4, 5, 7])
+        skins.append(kitten)
 
-    skins = [kitty, persian, white, kitten]
     js = ("// Made by scripts/build_skins.py from skins-src/. Do not edit by hand.\n"
           f"export const SKINS = {json.dumps(skins, separators=(',', ':'))};\n")
     (ROOT / "pet" / "skins.js").write_text(js, encoding="utf-8")

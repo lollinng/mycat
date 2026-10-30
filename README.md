@@ -24,9 +24,22 @@ Everything is kept in `%APPDATA%\DesktopPet\` (`fields.json`, `notes.json`, `set
 
 Clicks go through to whatever is underneath everywhere except on the cat and its toys.
 
-## Running it
-`npm install`, then `npm start`. It adds **Desktop Pet** to the Start menu and, while *Start with Windows* is ticked,
-to `shell:startup`. Starting it a second time opens the answers panel instead of a second cat.
+## Setting it up
+1. `npm install`.
+2. Optional: the **white cat** and **white kitten**. They are Last tick's, whose terms let you use them but not pass
+   them on, so they are not in this repo; download them yourself (free) and the script adds them:
+   - Open [64x64 FREE Pixel Cats](https://last-tick.itch.io/animated-pixel-cats-64x64), press **Download Now**, then
+     **No thanks, just take me to the downloads**, and download **PACK.zip**.
+   - Open [32x32 Pixel kittens](https://last-tick.itch.io/animated-pixel-kittens-cats-32x32), same steps, and download
+     **Free pack.zip** (not the winter or 14 feb ones).
+   - Run, with the paths to the two zips:
+     ```
+     uv run --no-project --with pillow python scripts/add_lasttick_cats.py PACK.zip "Free pack.zip"
+     ```
+     (or `pip install pillow`, then the same with plain `python`). It copies the two white sheets into `skins-src/`
+     and rebuilds the cats. Without this step the Cats menu offers Kitty and Persian.
+3. `npm start`. It adds **Desktop Pet** to the Start menu and, while *Start with Windows* is ticked, to
+   `shell:startup`. Starting it a second time opens the answers panel instead of a second cat.
 
 ## How it is made
 `main.js` makes two windows: the cat's (transparent, covering the work area, clicks pass through except on the cat)
@@ -38,14 +51,11 @@ and the answers panel (not focusable until you type in it). `pet/sprite.js` draw
 The code is MIT. The art keeps its artists' terms (details in `skins-src/SOURCES.md`):
 - **Kitty**: [2D Pixel Art Cat Sprites](https://elthen.itch.io/2d-pixel-art-cat-sprites) by Elthen, free to use in projects. Included.
 - **Persian**: [Pet Cats Pack](https://luizmelo.itch.io/pet-cat-pack) by LuizMelo, CC0. Included.
-- **White cat** and **White kitten**: Last tick's free packs, which may be used but "may not be redistributed", so they
-  are **not in this repo**. To add them, download [64x64 Pixel Cats](https://last-tick.itch.io/animated-pixel-cats-64x64)
-  and [32x32 Pixel kittens](https://last-tick.itch.io/animated-pixel-kittens-cats-32x32), save the white cat's sheet as
-  `skins-src/lasttick64/white.png` and the white kitten's as `skins-src/lasttick32/white.png`, then run
-  `python scripts/build_skins.py` (needs Pillow). Without them the Cats menu offers Kitty and Persian only.
+- **White cat** and **White kitten**: from Last tick's free packs, free to use but not to "resell or redistribute the
+  assets, free or paid, as files", so they are **not in this repo**: step 2 of *Setting it up* adds them.
 
 ## Tests
 - `npm test`: the data files and the panel's value rules.
-- `npm run test:app` (needs the white kitten, see above): drives the real app with synthetic clicks (your mouse does not move) in its own data folder:
+- `npm run test:app` (needs the white kitten: step 2 of *Setting it up*): drives the real app with synthetic clicks (your mouse does not move) in its own data folder:
   open the panel, copy, search, edit, notes, every toy, dragging and stroking. Set `PET_SHOTS=<folder>` for screenshots.
 - `npm run preview`: draws every pose and coat into `preview.png`.

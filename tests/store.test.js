@@ -41,9 +41,9 @@ test('settings fill in defaults, and cats that no longer exist drop out', () => 
   const store = new Store(tmp());
   store.saveSettings({ cats: ['persian'] });
   assert.deepStrictEqual({ ...store.settings() }, { name: 'Ket', cats: ['persian'], size: 'medium', startWithWindows: true,
-    tree: { shown: true, x: 0.82, lift: 0 } });
+    tree: { shown: true, x: 0.82, lift: 0, size: 'large' } });
   store.saveSettings({ tree: { lift: 120 } });
-  assert.deepStrictEqual(store.settings().tree, { shown: true, x: 0.82, lift: 120 });
+  assert.deepStrictEqual(store.settings().tree, { shown: true, x: 0.82, lift: 120, size: 'large' });
   store.saveSettings({ cats: ['bengal', 'kitty', 'kitty'] });
   assert.deepStrictEqual(store.settings().cats, ['kitty']);
   store.saveSettings({ cats: ['bengal'] });

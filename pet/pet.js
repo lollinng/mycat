@@ -40,11 +40,17 @@ const toyOf = (kind) => toys.find((t) => t.kind === kind);
 const tree = new Tree(document.getElementById('trees'));
 const treeOn = () => !!settings.tree?.shown;
 function applyTree() {
-  tree.setSize(settings.size);
+  const was = tree.s && { left: tree.left, s: tree.s, lift: tree.lift };
+  tree.setSize(settings.tree?.size);
   tree.el.style.display = treeOn() ? '' : 'none';
   tree.x = clamp((settings.tree?.x ?? 0.82) * W, tree.width / 2, W - tree.width / 2);
   tree.lift = settings.tree?.lift ?? 0;
   tree.place(H);
+  if (!was) return;
+  // a new size or place: the cats and toys up on the tree keep their spot on it, not on the screen
+  const across = (x) => tree.left + ((x - was.left) / was.s) * tree.s;
+  for (const c of cats) if (c.surface || c.hidden) c.x = across(c.x);   // their height follows the branch
+  for (const t of toys) if (t.on) { t.x = across(t.x); t.alt = tree.lift + ((t.alt - was.lift) / was.s) * tree.s; }
 }
 applyTree();
 const jumpReach = () => 80 * tree.s;   // the highest a cat jumps from one place on the tree to the next
@@ -113,12 +119,12 @@ const ACTS = {
   happy: { anim: ['roll', 'happy', 'meow', 'idle'], dur: [2.4, 3.2],
     enter: (c) => { c.hearts(3); if (Math.random() < 0.5) setTimeout(() => say('purr~', c.head(), 1300), 300); } },
   hop: { anim: ['jump', 'idle'],
-    enter: (c) => { c.vy = c.vy0 = 380; c.vx = 0; c.hearts(1); },
-    update: (c, a, dt) => { if (c.fall(dt)) c.start('idle', { dur: 1.5 }); } },
+    enter: (c) => { c.vy = c.vy0 = 380; c.vx = 0; c.surface = null; c.hearts(1); },
+    update: (c, a, dt) => { if (c.fall(dt)) c.start('land'); } },
   held: { anim: ['scared', 'jump', 'idle'],
     update: (c) => { c.extra = ` rotate(${-6 + 4 * Math.sin(clock * 3)}deg)`; c.progress = 0.35; } },
   fall: { anim: ['jump', 'scared', 'idle'], update: (c, a, dt) => { if (c.fall(dt)) c.start('land'); } },
-  land: { anim: ['crouch', 'idle'], dur: [0.3, 0.3], next: 'idle',
+  land: { anim: ['land', 'crouch', 'idle'], dur: [0.3, 0.3], next: 'idle',
     enter: (c) => { if (Math.random() < 0.3) setTimeout(() => say('hmph', c.head(), 1100), 150); } },
 
   // ---- play ----
@@ -169,7 +175,10 @@ const ACTS = {
       else a.next = 'idle';
     } },
   pounce: { anim: ['jump', 'run', 'idle'],
-    enter: (c, a) => { const tAir = 0.5; c.vy = c.vy0 = (GRAVITY * tAir) / 2; c.vx = (a.aim - c.x) / tAir; c.facing = Math.sign(c.vx) || c.facing; },
+    enter: (c, a) => {
+      const tAir = 0.5;
+      c.vy = c.vy0 = (GRAVITY * tAir) / 2; c.vx = (a.aim - c.x) / tAir; c.facing = Math.sign(c.vx) || c.facing; c.surface = null;
+    },
     update: (c, a, dt) => {
       if (!c.fall(dt)) return;
       const m = toyById(a.toy);
@@ -213,7 +222,9 @@ const ACTS = {
         c.start('leap');
       } else c.faceTowards(laser.x);
     } },
+  // a jump leaves the branch it started from: fall() puts it back on whatever it comes down on
   leap: { anim: ['jump', 'run', 'idle'],
+    enter: (c) => { c.surface = null; },
     update: (c, a, dt) => { if (c.fall(dt)) c.start('land', { next: laser ? 'laser' : 'idle' }); } },
 
   // ---- the cat tree ----
@@ -540,18 +551,31 @@ function hit(x, y) {
   return null;
 }
 
+// Take the clicks only while the pointer is on something of ours.
+function hover(x, y) {
+  const h = hit(x, y);
+  setInteractive(!!h);
+  document.body.classList.toggle('over-cat', !!h && h.kind !== 'toy');
+  return h;
+}
+
 addEventListener('mousemove', (e) => {
   mouse.x = e.clientX; mouse.y = e.clientY;
   if (laser) { laser.move(e.clientX, e.clientY); return; }
   if (drag) return dragMove(e);
-  const h = hit(e.clientX, e.clientY);
-  setInteractive(!!h);
-  document.body.classList.toggle('over-cat', !!h && h.kind !== 'toy');
+  const h = hover(e.clientX, e.clientY);
   for (const c of cats) if (h?.thing === c) c.petting(e.clientX); else c.strokes.lastX = null;
 });
 
+// Linux: the page hears nothing while clicks go through, so the main process says where the pointer is.
+api.on('pointer', ({ x, y }) => {
+  if (drag || laser) return;
+  mouse.x = x; mouse.y = y;
+  hover(x, y);
+});
+
 addEventListener('mousedown', (e) => {
-  if (laser) { stopLaser(); for (const c of cats) c.start('idle'); return; }
+  if (laser) { stopLaser(); for (const c of cats) if (!AIRBORNE.includes(c.act.name)) c.start('idle'); return; }
   if (e.button !== 0) return;
   const h = hit(e.clientX, e.clientY);
   if (!h?.thing) return;
@@ -635,12 +659,14 @@ api.on('react', (what) => {
   const c = cats.find((x) => ['idle', 'sit', 'watch', 'walk', 'groom', 'groom2'].includes(x.act.name));
   c?.start('hop');
 });
+// Nap, Wake up and Meow from the menu: a cat in mid-air lands first and carries on
 api.on('command', (cmd) => {
-  for (const c of cats) {
+  const down = cats.filter((c) => !AIRBORNE.includes(c.act.name));
+  for (const c of down) {
     if (cmd === 'nap') c.start('sleep');
     if (cmd === 'wake') c.start('stretch');
   }
-  if (cmd === 'meow') cats[Math.floor(Math.random() * cats.length)].start('meow');
+  if (cmd === 'meow' && down.length) down[Math.floor(Math.random() * down.length)].start('meow');
 });
 api.on('settings', (s) => { settings = s; syncCats(); applyTree(); });
 

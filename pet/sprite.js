@@ -45,11 +45,14 @@ export class SpriteCat {
     return name;
   }
 
-  // progress: for a jump drawn frame by frame, how far through it the cat is (0..1)
+  // progress: for a jump drawn frame by frame, how far through it the cat is (0..1; none yet = just off)
   update(dt, rate = 1, progress = null) {
     const a = this.skin.anims[this.anim];
     let f;
-    if (a.byHeight && progress !== null) f = Math.max(0, Math.min(a.frames - 1, Math.round(progress * (a.frames - 1))));
+    if (a.byHeight) {
+      const [first, last] = a.air ?? [0, a.frames - 1];   // only the frames drawn off the floor
+      f = first + Math.round(Math.max(0, Math.min(1, progress ?? 0)) * (last - first));
+    }
     else {
       this.t += dt * rate;
       f = Math.floor(this.t * a.fps);

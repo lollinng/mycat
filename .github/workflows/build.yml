@@ -1,0 +1,91 @@
+# Builds Desktop Pet for Windows, macOS and Linux, checks that each build starts and puts a cat out,
+# and for a version tag (git tag v2.1.0 && git push origin v2.1.0) publishes the builds as a GitHub Release.
+# Run it by hand from the Actions tab to only build (the files are kept on the run's page).
+name: Build
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            flags: --win --x64
+          - os: macos-latest
+            flags: --mac
+          - os: ubuntu-latest
+            flags: --linux --x64
+    runs-on: ${{ matrix.os }}
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'   # electron-builder fetches the Electron it packs; the tests do not need one
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npx electron-builder ${{ matrix.flags }} --publish never
+
+      # each build is started once, hidden (DESKTOP_PET_SMOKE in main.js): it writes smoke.json and quits with 0 once a cat is out
+      - name: Windows build starts
+        if: runner.os == 'Windows'
+        env:
+          DESKTOP_PET_SMOKE: '1'
+          DESKTOP_PET_DIR: ${{ runner.temp }}/pet
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath 'dist/win-unpacked/Desktop Pet.exe' -PassThru -Wait
+          Get-Content "$env:DESKTOP_PET_DIR/smoke.json"
+          exit $p.ExitCode
+      - name: macOS build starts (Apple Silicon)
+        if: runner.os == 'macOS'
+        env:
+          DESKTOP_PET_SMOKE: '1'
+          DESKTOP_PET_DIR: ${{ runner.temp }}/pet
+        run: |
+          codesign --verify --deep --strict "dist/mac-arm64/Desktop Pet.app"
+          "dist/mac-arm64/Desktop Pet.app/Contents/MacOS/Desktop Pet"
+          cat "$DESKTOP_PET_DIR/smoke.json"
+      - name: Linux build starts
+        if: runner.os == 'Linux'
+        env:
+          DESKTOP_PET_SMOKE: '1'
+          DESKTOP_PET_DIR: ${{ runner.temp }}/pet
+        run: |
+          xvfb-run -a dist/linux-unpacked/desktop-pet --no-sandbox
+          cat "$DESKTOP_PET_DIR/smoke.json"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-pet-${{ runner.os }}
+          path: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.AppImage
+            dist/*.tar.gz
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" out/* --title "Desktop Pet ${GITHUB_REF_NAME#v}" --notes-file .github/release-notes.md

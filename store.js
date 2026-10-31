@@ -1,4 +1,5 @@
-// What the cat remembers, as JSON files in one folder (%APPDATA%\DesktopPet by default):
+// What the cat remembers, as JSON files in one folder (DesktopPet in %APPDATA% on Windows,
+// ~/Library/Application Support on macOS, ~/.config on Linux):
 // fields.json (the quick-copy answers), notes.json (free notes), settings.json.
 const fs = require('fs');
 const path = require('path');
@@ -6,7 +7,7 @@ const crypto = require('crypto');
 
 const DEFAULT_SETTINGS = {
   name: 'Ket', cats: ['kitty', 'persian'], size: 'medium', startWithWindows: true,
-  tree: { shown: true, x: 0.82, lift: 0 },   // x: across the screen (0..1); lift: pixels above the taskbar
+  tree: { shown: true, x: 0.82, lift: 0, size: 'large' },   // x: across the screen (0..1); lift: pixels above the taskbar
 };
 const CATS = ['kitty', 'persian', 'white', 'kitten'];
 

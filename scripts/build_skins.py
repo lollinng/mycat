@@ -36,16 +36,35 @@ def box(frame):
     return frame.getchannel("A").getbbox() or (0, 0, 1, 1)
 
 
+def lower(frame, dy):
+    if dy <= 0:
+        return frame
+    out = Image.new("RGBA", frame.size)
+    out.alpha_composite(frame.convert("RGBA").crop((0, 0, frame.width, frame.height - dy)), (0, dy))
+    return out
+
+
+# Frames meant to be off the floor: a gait's stride and the jump. Every other pose is drawn standing on it.
+LIFTED = ("walk", "run", "jump")
+
+
 def skin(id_, name, frames, scales):
-    """frames: {anim: (list of frames, fps, extra options)}. The art faces right."""
+    """frames: {anim: (list of frames, fps, extra options)}. The art faces right.
+    A pose drawn a few pixels above the floor is moved down onto it: the whole animation by the least any frame
+    floats, so its own motion stays, or each frame onto the floor with the option "settle": "each"."""
     out = OUT / id_
     out.mkdir(parents=True, exist_ok=True)
+    ground = max(box(f)[3] for a in ("idle", "walk") for f in frames[a][0])
     anims = {}
     for anim, (fs, fps, extra) in frames.items():
+        extra = dict(extra)
+        each = extra.pop("settle", None) == "each"
+        if anim not in LIFTED:
+            lifts = [max(0, ground - box(f)[3]) for f in fs]
+            fs = [lower(f, lift if each else min(lifts)) for f, lift in zip(fs, lifts)]
         strip(fs).save(out / f"{anim}.png", optimize=True)
         anims[anim] = {"file": f"{anim}.png", "frames": len(fs), "fps": fps, "boxes": [list(box(f)) for f in fs], **extra}
     w, h = frames["idle"][0][0].size
-    ground = max(b[3] for a in ("idle", "walk") for b in anims[a]["boxes"])
     first = anims["idle"]["boxes"][0]
     return {"id": id_, "name": name, "frame": [w, h], "scales": scales, "ground": ground,
             "cx": (first[0] + first[2]) / 2, "anims": anims}
@@ -59,9 +78,12 @@ def build():
     row = lambda r, n: cut(sheet, 32, 32, r, n)
     kitty = skin("kitty", "Kitty", {
         "idle": (row(0, 4), 5, {}), "idle2": (row(1, 4), 5, {}), "lick": (row(2, 4), 6, {}), "lick2": (row(3, 4), 6, {}),
-        "run": (row(4, 8), 12, {"speed": 46}), "roll": (row(5, 8), 8, {}), "sleep": (row(6, 4), 3, {}),
-        "paw": (row(7, 6), 10, {}), "jump": (row(8, 7), 10, {"byHeight": True}), "walk": (row(9, 8), 8, {"speed": 12}),
-        "liedown": (row(5, 2), 6, {"once": True}), "crouch": (row(5, 2)[1:], 1, {}),
+        "run": (row(4, 8), 12, {"speed": 46}), "roll": (row(5, 8), 8, {"settle": "each"}), "sleep": (row(6, 4), 3, {}),
+        # jump: sit, rear up, leap, come down, then three frames of landing. In the air only the leap and the
+        # coming down are drawn ("air"); the landing frames are their own animation, played once it is down.
+        "paw": (row(7, 6), 10, {}), "jump": (row(8, 7), 10, {"byHeight": True, "air": [2, 3]}),
+        "land": (row(8, 7)[4:], 12, {"once": True}), "walk": (row(9, 8), 8, {"speed": 12}),
+        "liedown": (row(5, 2), 6, {"once": True, "settle": "each"}), "crouch": (row(5, 2)[1:], 1, {}),
     }, [4, 5, 7])
 
     # LuizMelo's Persian: 50x50 frames, one file per animation
@@ -88,7 +110,9 @@ def build():
             "meow": (row(14, 3), 6, {}), "itch": (row(18, 8), 10, {}), "yawn": (row(43, 7), 7, {}),
             "paw": (row(35, 11), 16, {}), "lie": (row(28, 3), 4, {}), "sleep": (row(45, 2), 1.2, {}),
             "sleep2": (row(53, 2), 1.2, {}), "eat": (row(59, 10), 8, {}), "scared": (row(61, 2), 4, {}),
-            "jump": (row(64, 5), 10, {"byHeight": True}), "happy": (row(65, 4), 6, {}),
+            # jump: stand, gather, leap, land, stand: only the leap is drawn in the air
+            "jump": (row(64, 5), 10, {"byHeight": True, "air": [2, 2]}), "land": (row(64, pick=[3, 4]), 10, {"once": True}),
+            "happy": (row(65, 4), 6, {}),
             "crouch": (row(64, pick=[1]), 1, {}), "stretch": (row(6, pick=[10, 11, 12, 13, 12, 11]), 4, {"once": True}),
         }, [2, 3, 4])
         skins.append(white)

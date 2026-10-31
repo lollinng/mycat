@@ -1,4 +1,4 @@
-// Desktop pet: a cat that lives on the Windows desktop, plays with toys and keeps the
+// Desktop pet: a cat that lives on the desktop (Windows, macOS, Linux), plays with toys and keeps the
 // answers you paste into job forms. Two windows: the cat's (transparent, over the whole
 // work area, clicks pass through except on the cat and its toys) and the answers panel.
 const { app, BrowserWindow, ipcMain, screen, Tray, Menu, clipboard, shell, nativeImage } = require('electron');
@@ -14,8 +14,10 @@ const SKINS = JSON.parse(fs.readFileSync(path.join(__dirname, 'assets', 'skins',
 const SIZES = { small: 'Small', medium: 'Medium', large: 'Large' };
 const PROGRAMS = path.join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs');
 const SHORTCUTS = { menu: path.join(PROGRAMS, 'Desktop Pet.lnk'), startup: path.join(PROGRAMS, 'Startup', 'Desktop Pet.lnk') };
-const TESTING = !!process.env.DESKTOP_PET_DIR;   // tests use their own folder and leave Windows alone
+const AT_LOGIN = { win32: 'Start with Windows', darwin: 'Open at login' }[process.platform] ?? 'Start at login';
+const TESTING = !!process.env.DESKTOP_PET_DIR;   // tests use their own folder and leave the system alone
 const NO_SHORTCUTS = TESTING || !!process.env.PET_NO_SHORTCUTS;
+const SMOKE = !!process.env.DESKTOP_PET_SMOKE;   // release builds: start, check a cat is out, quit (see smokeTest)
 
 const store = new Store(DIR);
 // The cats' window is a strip above the taskbar, as tall as the cat tree needs, and the whole work
@@ -31,7 +33,8 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 if (process.env.PET_NO_GPU) app.disableHardwareAcceleration();
 if (TESTING) app.setPath('userData', path.join(DIR, 'electron'));   // its own single-instance lock
 if (!app.requestSingleInstanceLock()) app.quit();
-app.on('second-instance', () => showPanel());
+// starting it again brings the cat back if it was hidden, and opens the answers
+app.on('second-instance', () => { if (pet && !pet.isVisible()) showCat(); showPanel(); });
 
 function petBounds() {
   const wa = screen.getPrimaryDisplay().workArea;
@@ -47,7 +50,7 @@ function createPet() {
   });
   pet.setIgnoreMouseEvents(true, { forward: true });
   pet.loadFile(path.join(__dirname, 'pet', 'index.html'));
-  pet.once('ready-to-show', () => pet.showInactive());
+  pet.once('ready-to-show', () => { if (!SMOKE) pet.showInactive(); });
   pet.on('closed', () => app.quit());
 }
 
@@ -93,7 +96,7 @@ const command = (cmd) => pet?.webContents.send('command', cmd);
 function setSetting(key, value) {
   settings = store.saveSettings({ ...settings, [key]: value });
   pet?.webContents.send('settings', settings);
-  if (key === 'startWithWindows') writeShortcuts();
+  if (key === 'startWithWindows') startAtLogin();
   refreshTray();
 }
 
@@ -137,14 +140,16 @@ function menuTemplate() {
     { label: 'Cats', submenu: catsMenu() },
     { label: 'Cat tree', type: 'checkbox', checked: settings.tree.shown,
       click: (item) => setSetting('tree', { ...settings.tree, shown: item.checked }) },
+    { label: 'Tree size', enabled: settings.tree.shown, submenu: Object.entries(SIZES).map(([k, label]) => ({
+      label, type: 'radio', checked: settings.tree.size === k, click: () => setSetting('tree', { ...settings.tree, size: k }) })) },
     { label: 'Put the tree on the floor', visible: settings.tree.shown && settings.tree.lift > 0,
       click: () => setSetting('tree', { ...settings.tree, lift: 0 }) },
-    { label: 'Size', submenu: Object.entries(SIZES).map(([k, label]) => ({
+    { label: 'Cat size', submenu: Object.entries(SIZES).map(([k, label]) => ({
       label, type: 'radio', checked: settings.size === k, click: () => setSetting('size', k) })) },
     { type: 'separator' },
     { label: 'Show the cat', visible: !pet?.isVisible(), click: showCat },
     { label: 'Hide for 1 hour', visible: !!pet?.isVisible(), click: hideForAnHour },
-    { label: 'Start with Windows', type: 'checkbox', checked: settings.startWithWindows,
+    { label: AT_LOGIN, type: 'checkbox', checked: settings.startWithWindows,
       click: (item) => setSetting('startWithWindows', item.checked) },
     { label: 'Quit', click: () => app.quit() },
   ];
@@ -161,13 +166,33 @@ function createTray() {
   refreshTray();
 }
 
-// Start menu entry always; the Startup one only while "Start with Windows" is on.
+// Starting with the computer (the setting is still called startWithWindows in settings.json).
+function startAtLogin() {
+  if (NO_SHORTCUTS) return;
+  const on = settings.startWithWindows;
+  if (process.platform === 'win32') writeShortcuts();
+  else if (process.platform === 'darwin') { if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: on }); }
+  else {
+    // Linux: an autostart entry. The AppImage is run from where it was saved, not from where it unpacks itself.
+    const dir = path.join(process.env.XDG_CONFIG_HOME || path.join(app.getPath('home'), '.config'), 'autostart');
+    const file = path.join(dir, 'desktop-pet.desktop');
+    const exec = process.env.APPIMAGE ? `"${process.env.APPIMAGE}"`
+      : app.isPackaged ? `"${process.execPath}"` : `"${process.execPath}" "${app.getAppPath()}"`;
+    if (on) {
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(file, `[Desktop Entry]\nType=Application\nName=Desktop Pet\nComment=A cat that keeps your answers\nExec=${exec}\nX-GNOME-Autostart-enabled=true\n`);
+    } else if (fs.existsSync(file)) fs.unlinkSync(file);
+  }
+}
+
+// Start menu entry always (the installer makes the same one); the Startup one only while "Start with Windows" is on.
 function writeShortcuts() {
-  if (NO_SHORTCUTS || process.platform !== 'win32') return;
-  const link = {
-    target: process.execPath, args: `"${app.getAppPath()}"`, cwd: app.getAppPath(),
-    icon: path.join(__dirname, 'assets', 'icon.ico'), iconIndex: 0, description: 'A cat that keeps your answers',
-  };
+  // the portable .exe unpacks itself to a temporary folder each time: point at the .exe that was saved
+  const exe = process.env.PORTABLE_EXECUTABLE_FILE || process.execPath;
+  const link = app.isPackaged
+    ? { target: exe, cwd: path.dirname(exe), icon: exe, iconIndex: 0, description: 'A cat that keeps your answers' }
+    : { target: exe, args: `"${app.getAppPath()}"`, cwd: app.getAppPath(),
+      icon: path.join(__dirname, 'assets', 'icon.ico'), iconIndex: 0, description: 'A cat that keeps your answers' };
   shell.writeShortcutLink(SHORTCUTS.menu, 'replace', link) || shell.writeShortcutLink(SHORTCUTS.menu, 'create', link);
   if (settings.startWithWindows) {
     shell.writeShortcutLink(SHORTCUTS.startup, 'replace', link) || shell.writeShortcutLink(SHORTCUTS.startup, 'create', link);
@@ -198,11 +223,50 @@ ipcMain.handle('panel-focus', (_e, on) => {
 });
 ipcMain.on('panel-hide', () => panel?.hide());
 
+// Linux cannot let clicks through and still tell the page where the mouse is, so the cats could never be
+// pointed at: send the page the pointer instead, whenever it moves.
+function followPointer() {
+  let last = '';
+  setInterval(() => {
+    if (!pet?.isVisible()) return;
+    const p = screen.getCursorScreenPoint();
+    const b = pet.getBounds();
+    const at = { x: p.x - b.x, y: p.y - b.y };
+    if (`${at.x},${at.y}` === last) return;
+    last = `${at.x},${at.y}`;
+    pet.webContents.send('pointer', at);
+  }, 50);
+}
+
+// For the release builds: start without showing anything, wait for the cats' page to put a cat out,
+// write smoke.json in the data folder, and quit (0 = it works).
+async function smokeTest() {
+  const result = { ok: false, cats: 0, platform: process.platform, arch: process.arch, packaged: app.isPackaged, errors: [] };
+  pet.webContents.on('console-message', (e, level, message) => {
+    if ((e.level ?? level) === 'error' || level === 3) result.errors.push(e.message ?? message);
+  });
+  pet.webContents.on('render-process-gone', (_e, d) => result.errors.push(`page gone: ${d.reason}`));
+  const end = Date.now() + 30000;
+  while (Date.now() < end && !result.ok && !result.errors.length) {
+    await new Promise((r) => setTimeout(r, 250));
+    result.cats = await pet.webContents.executeJavaScript('window.__pet?.cats?.length ?? 0').catch(() => 0);
+    result.ok = result.cats > 0;
+  }
+  result.ok &&= !result.errors.length;
+  fs.mkdirSync(DIR, { recursive: true });
+  fs.writeFileSync(path.join(DIR, 'smoke.json'), JSON.stringify(result, null, 2));
+  console.log(JSON.stringify(result));
+  app.exit(result.ok ? 0 : 1);
+}
+
 app.whenReady().then(() => {
   settings = store.settings();
   createPet();
+  if (SMOKE) return smokeTest();
+  if (process.platform === 'darwin') app.dock?.hide();   // a desktop pet, not an app in the Dock: it has the menu bar icon
+  if (process.platform === 'linux') followPointer();
   createTray();
-  writeShortcuts();
+  startAtLogin();
   screen.on('display-metrics-changed', fitPet);
   screen.on('display-added', fitPet);
   screen.on('display-removed', fitPet);

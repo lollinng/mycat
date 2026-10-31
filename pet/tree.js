@@ -2,7 +2,8 @@
 // can nap in, and a toy on a string. You can drag it anywhere; it stays where you leave it.
 import { TREE } from './tree-data.js';
 
-const SCALE = { small: 2, medium: 3, large: 3 };
+// Tree size (Small, Medium, Large in the menu): pixels per pixel of the art.
+export const TREE_SCALE = { small: 2, medium: 2.5, large: 3 };
 
 export class Tree {
   constructor(layer) {
@@ -19,7 +20,7 @@ export class Tree {
   }
 
   setSize(size) {
-    this.s = SCALE[size] ?? 3;
+    this.s = TREE_SCALE[size] ?? TREE_SCALE.large;
     const s = this.s;
     Object.assign(this.el.style, { width: `${TREE.w * s}px`, height: `${TREE.h * s}px` });
     const [hx, hy] = TREE.toy;

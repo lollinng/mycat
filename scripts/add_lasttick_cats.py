@@ -1,6 +1,6 @@
 """Add Last tick's white cat and white kitten, then build them.
 
-Their terms let you use the art but not redistribute it, so they are not in this repo (README, "Setting it up",
+Their terms let you use the art but not redistribute it, so they are not in this repo (README, "Running from source",
 step 2). Run, from anywhere:
 
     uv run --no-project --with pillow python scripts/add_lasttick_cats.py
